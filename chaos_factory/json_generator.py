@@ -140,6 +140,7 @@ def generate_json_table(num_records, output_name, word_list_instance, word_count
     end_time = time.time()  # End timing
     total_time = end_time - start_time
     logging.info(f"Total time to generate output: {total_time:.2f} seconds")
+
         
 def main():
     """Main function to parse arguments and generate JSON table."""
