@@ -119,55 +119,7 @@ def generate_json_table(num_records, output_name, word_list_instance):
         batch_output_name = os.path.join(output_dir, f"tmp_records_{start}_{end}.json")
         os.remove(batch_output_name)
         print(f"Deleted {batch_output_name}")
-
-def PREV_1generate_json_table(num_records, output_name, word_list_instance):
-    # Define the number of records per file
-    records_per_file = 5000  # Adjust this number based on your needs
-
-    # Create a pool of workers equal to the number of CPU cores
-    with Pool(cpu_count()) as p:
-        for i in range(0, num_records, records_per_file):
-            # Calculate the range for the current batch
-            start = i
-            end = min(i + records_per_file, num_records)
-            
-            # Generate records for the current batch
-            record_batch = p.map(generate_record, [(count, word_list_instance) for count in range(start, end)])
-            output_dir=os.path.dirname(output_name)
-            # Define the output file name for the current batch
-            batch_output_name = os.path.join(output_dir, f"tmp_records_{start}_{end}.json")
-            
-            # Save the current batch of records to a JSON file
-            with open(batch_output_name, "w") as f:
-                json.dump({"recordset": record_batch}, f, indent=4)
-            print(f"Saved {batch_output_name}")
-
-    # Once all batches are saved, you can append them together
-    # This is just an example of how you might do it
-    with open(output_name, "w") as outfile:
-        for i in range(0, num_records, records_per_file):
-            start = i
-            end = min(i + records_per_file, num_records)
-            batch_output_name = os.path.join(output_dir, f"tmp_records_{start}_{end}.json")
-            with open(batch_output_name, "r") as infile:
-                outfile.write(infile.read())
-
-def PREVgenerate_json_table(num_records, output_name, word_list_instance):
-    # Create a pool of workers equal to the number of CPU cores
-    with Pool(cpu_count()) as p:
-        # Use a tuple to pass multiple arguments to generate_record
-        recordset = p.map(generate_record, [(count, word_list_instance) for count in range(24859, 24859 + num_records)])
-
-    # Create a dictionary with the "recordset" key
-    output_data = {"recordset": recordset}
-
-    # Save the output data to a JSON file
-    with open(output_name, "w") as f:
-        json.dump(output_data, f, indent=4)
-
-# Rest of your code remains the same
-
-
+        
 def main():
     """Main function to parse arguments and generate JSON table."""
     logging.basicConfig(level=logging.INFO)
