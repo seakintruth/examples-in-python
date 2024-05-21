@@ -7,6 +7,7 @@ import pickle
 import logging
 import time
 from multiprocessing import Pool, cpu_count
+from mimesis import Generic
 
 # Brief Description:
 # This script generates a JSON file containing a set of records. Each record includes a random phrase
@@ -19,6 +20,9 @@ from multiprocessing import Pool, cpu_count
 # json_generator.py" 1000000 1_million.json
 # All options example:
 # json_generator.py" 1000000 1_million.json --word-list-url https://www.mit.edu/~ecprice/wordlist.100000 --word-list-file-path word_list.pkl --random-word-count-min 2 --random-word-count-max 4 --records-per-temp-file-count 10000
+
+# Create a generic memisis fake data generator
+generic = Generic()
 
 class WordList:
     """Class to manage a list of words."""
@@ -84,6 +88,14 @@ def generate_record(args):
             min = float(min_max[0])
             max = float(min_max[1])
             record[field_name] = random.uniform(min, max)  # Replace with your logic for generating float
+        elif data_type == 'memisis_name':
+            record[field_name] = generic.person.full_name()
+        elif data_type == 'memisis_address':
+            record[field_name] = generic.address.address()
+        elif data_type == 'memisis_sentence':
+            record[field_name] = generic.text.sentence()
+        elif data_type == 'memisis_date':
+            record[field_name] = str(generic.datetime.date())
     return record
 
 def generate_json_table(num_records, output_name, word_list_instance, records_per_temp_file,fields):
@@ -109,7 +121,7 @@ def generate_json_table(num_records, output_name, word_list_instance, records_pe
             with open(batch_output_name, "w") as f:
                 # Dump the list directly instead of a dict with the "recordset" key
                 json.dump(record_batch, f, indent=4)
-            print(f"Saved {batch_output_name}{time.time():.2f}")
+            print(f"Saved {batch_output_name} at {time.time():.2f}")
     
     # Once all batches are saved            
     tempFile_end_time = time.time()  # End timing
@@ -162,9 +174,9 @@ def main():
     parser.add_argument('--word-list-file-path', type=str, default='word_list.pkl', help='Path to save/load the word list pickle file')
     parser.add_argument('--records-per-temp-file-count', type=int, default=50000, help='Number of records to generate saved to each temp file')
     parser.add_argument('--fields', 
-                        default='machineId:int(1200|2000),queryTime:float(1.1|49.9),totalExecTime:float(3.1|59.9),idleTime:float(5.1|9.9),empty:null,maybe:bool,category:memo(1|2),notes:memo(8|13),FK1:int(1111|9999),FK2:int(1111|9999),FK3:int(1111|9999)', 
+                        default='machineId:int(1200|2000),date:memisis_date,queryTime:float(1.1|49.9),user:memisis_name,address:memisis_address,details:memisis_sentence,idleTime:float(5.1|9.9),empty:null,maybe:bool,category:memo(1|2),notes:memo(8|13),FK1:int(1111|9999),FK2:int(1111|9999),FK3:int(1111|9999)', 
                         type=str, 
-                        help='Fields and their data types in the form of "field1:data_type1,field2:data_type2,...". Data types can be "int(min|max)", "bool(min|max)", "null", "float(min|max)", or "memo({min word count} < {max word count})".'
+                        help='Fields and their data types in the form of "field1:data_type1,field2:data_type2,...". Data types can be int(min|max)", "bool(min|max)", "null", "float(min|max)", "memo({min word count} < {max word count} or any of several memisis geneartor data types;memisis_address, memisis_name, memisis_sentence, memisis_date)".'
                         )
 
     args = parser.parse_args()
