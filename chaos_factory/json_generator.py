@@ -57,32 +57,36 @@ class WordList:
 
 def generate_record(args):
     """Generate a single record with random data."""
-    count, word_list_instance, word_count_min, word_count_max = args
+    count, word_list_instance, fields = args
 
-    # Define base values for query and process times
-    base_query_time = 15
-    base_process_time = 5
+    # Create a dictionary representing the record
+    record = {}
+    record["sequence"] = count
+    for field in fields:
+        field_name, data_type = field.split(':')
+        if data_type.startswith('memo'):
+            min_max = data_type.strip('memo()').split('|')
+            word_count_min = int(min_max[0])
+            word_count_max = int(min_max[1])
+            comments = word_list_instance.get_random_words(random.randint(word_count_min,word_count_max))
+            record[field_name] = comments
+        elif data_type.startswith('int'):
+            min_max = data_type.strip('int()').split('|')
+            min = int(min_max[0])
+            max = int(min_max[1])
+            record[field_name] = random.randint(min, max)  # Replace with your logic for generating int
+        elif data_type == 'bool':
+            record[field_name] = random.randint(0, 1) == 0  
+        elif data_type == 'null':
+            record[field_name] = None 
+        elif data_type.startswith('float'):
+            min_max = data_type.strip('float()').split('|')
+            min = float(min_max[0])
+            max = float(min_max[1])
+            record[field_name] = random.uniform(min, max)  # Replace with your logic for generating float
+    return record
 
-    # Add random jitter to simulate variability in execution times
-    query_time = base_query_time + random.uniform(-2, 4)  # Jitter within [-2, 4]
-    process_time = base_process_time + random.uniform(-1.5, 5)  # Jitter within [-1.5, 5]
-
-    # Calculate total execution time
-    total_exec_time = query_time + process_time
-
-    # Generate a random comment using the WordList instance
-    comments = word_list_instance.get_random_words(random.randint(word_count_min,word_count_max))
-
-    # Return a dictionary representing the record
-    return {
-        "count": count,
-        "queryTime": query_time,
-        "totalExecTime": total_exec_time,
-        "processTime": process_time,
-        "comments": comments
-    }
-
-def generate_json_table(num_records, output_name, word_list_instance, word_count_min, word_count_max,records_per_temp_file):
+def generate_json_table(num_records, output_name, word_list_instance, records_per_temp_file,fields):
     start_time = time.time()  # Start timing
 
     # Define the number of records per file
@@ -96,7 +100,7 @@ def generate_json_table(num_records, output_name, word_list_instance, word_count
             end = min(i + records_per_file, num_records)
             
             # Generate records for the current batch
-            record_batch = p.map(generate_record, [(count, word_list_instance, word_count_min, word_count_max) for count in range(start, end)])
+            record_batch = p.map(generate_record, [(count, word_list_instance, fields) for count in range(start, end)])
             output_dir = os.path.dirname(output_name)
             # Define the output file name for the current batch
             batch_output_name = os.path.join(output_dir, f"tmp_records_{start}_{end}.json")
@@ -141,26 +145,28 @@ def generate_json_table(num_records, output_name, word_list_instance, word_count
     total_time = end_time - start_time
     logging.info(f"Total time to generate output: {total_time:.2f} seconds")
 
-        
 def main():
     """Main function to parse arguments and generate JSON table."""
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description='Generate a JSON table. \n' +
-                                     'This script generates a JSON file containing a set of records. \n' +
-                                     'Each record includes a random phrase and simulated execution times for a hypothetical query process. \n' +
-                                     'The script utilizes multiprocessing to efficiently generate records and manages word lists through a custom class that can load words from a URL or a local pickle file.\n'
-                                    )
+    parser = argparse.ArgumentParser(
+        description='Generate a JSON table. \n' +
+        'This script generates a JSON file containing a set of records. \n' +
+        'Each record includes a random phrase and simulated execution times for a hypothetical query process. \n' +
+        'The script utilizes multiprocessing to efficiently generate records and manages word lists through a custom class that can load words from a URL or a local pickle file.\n'
+    )
 
     parser.add_argument('rows', type=int, help='Number of rows to generate')
     parser.add_argument('output', type=str, help='Output file name')
     parser.add_argument('--word-list-url', type=str, default="https://www.mit.edu/~ecprice/wordlist.10000", help='URL to fetch the word list from, default is 10k word list, this is a 100k word list: https://www.mit.edu/~ecprice/wordlist.100000')
     parser.add_argument('--word-list-file-path', type=str, default='word_list.pkl', help='Path to save/load the word list pickle file')
-    parser.add_argument('--random-word-count-min', type=int, default=3, help='Number of random words to add in each record:min')
-    parser.add_argument('--random-word-count-max', type=int, default=8, help='Number of random words to add in each record:max')
     parser.add_argument('--records-per-temp-file-count', type=int, default=50000, help='Number of records to generate saved to each temp file')
-    
-    
+    parser.add_argument('--fields', 
+                        default='machineId:int(1200|2000),queryTime:float(1.1|49.9),totalExecTime:float(3.1|59.9),idleTime:float(5.1|9.9),empty:null,maybe:bool,category:memo(1|2),notes:memo(8|13),FK1:int(1111|9999),FK2:int(1111|9999),FK3:int(1111|9999)', 
+                        type=str, 
+                        help='Fields and their data types in the form of "field1:data_type1,field2:data_type2,...". Data types can be "int(min|max)", "bool(min|max)", "null", "float(min|max)", or "memo({min word count} < {max word count})".'
+                        )
+
     args = parser.parse_args()
     if args.rows <= 0:
         parser.error("Number of rows must be a positive integer greater than 0")
@@ -168,7 +174,9 @@ def main():
     # Create an instance of the WordList class with the optional arguments
     word_list_instance = WordList(args.word_list_url, args.word_list_file_path)
     
-    generate_json_table(num_records=args.rows, output_name=args.output, word_list_instance=word_list_instance, word_count_min=args.random_word_count_min, word_count_max=args.random_word_count_max, records_per_temp_file=args.records_per_temp_file_count)
+    fields = [field.strip() for field in args.fields.split(',')]
+    
+    generate_json_table(num_records=args.rows, output_name=args.output, word_list_instance=word_list_instance, records_per_temp_file=args.records_per_temp_file_count, fields=fields)
 
 if __name__ == "__main__":
     main()
