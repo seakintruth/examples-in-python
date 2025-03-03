@@ -1,0 +1,20 @@
+# requirements.txt for Desktop Organizer
+
+# Modern UI theme for Tkinter
+ttkbootstrap==1.10.1
+
+# Secure storage for API keys
+keyring==23.13.1
+
+# OpenAI API client for interacting with language models
+openai==0.27.8
+
+# Hugging Face Transformers for zero-shot classification models
+transformers==4.31.0
+
+# Configuration file parsing (note: configparser is in stdlib, but included historically in some contexts)
+# Not needed here as it's standard, but listed for clarity if older Python versions are considered
+# configparser==5.3.0  # Commented out since it's in Python 3 standard library
+
+# PyTorch as the backend for Transformers (alternative: TensorFlow)
+torch==2.3.0
